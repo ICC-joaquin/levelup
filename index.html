@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LevelUp</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+  :root{--bg:#0a0a0f;--surface:#111118;--surface2:#1a1a24;--border:#2a2a38;--accent:#f0c040;--accent2:#7c6aff;--accent3:#40e0c0;--text:#f0eeff;--muted:#7070a0;--danger:#ff4466;--success:#40d090;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;opacity:0.2;pointer-events:none;z-index:0;}
+  .app{position:relative;z-index:1;min-height:100vh;}
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:100%;max-width:380px;}
+  .login-logo{font-size:26px;font-weight:800;color:var(--accent);margin-bottom:4px;}
+  .login-logo span{color:var(--text);}
+  .login-sub{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:28px;letter-spacing:1px;text-transform:uppercase;}
+  .login-tabs{display:flex;margin-bottom:24px;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  .login-tab{flex:1;padding:9px;background:none;border:none;color:var(--muted);font-family:'Syne',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;}
+  .login-tab.active{background:var(--surface2);color:var(--accent);}
+  .login-field{margin-bottom:14px;}
+  .login-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:6px;display:block;}
+  .login-input{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Syne',sans-serif;font-size:14px;outline:none;transition:border-color 0.15s;}
+  .login-input:focus{border-color:var(--accent);}
+  .login-btn{width:100%;padding:11px;background:var(--accent);color:#000;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;border:none;border-radius:8px;cursor:pointer;margin-top:6px;transition:filter 0.15s;}
+  .login-btn:hover{filter:brightness(1.1);}
+  .login-err{font-size:12px;color:var(--danger);font-family:'JetBrains Mono',monospace;margin-top:10px;text-align:center;}
+  .loading{min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:13px;flex-direction:column;gap:16px;}
+  .spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  header{padding:14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;background:rgba(10,10,15,0.92);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:8px;}
+  .logo{font-size:20px;font-weight:800;color:var(--accent);}
+  .logo span{color:var(--text);}
+  nav{margin-left:auto;display:flex;gap:3px;flex-wrap:wrap;align-items:center;}
+  .nav-btn{padding:6px 13px;border:1px solid transparent;background:none;color:var(--muted);font-family:'Syne',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border-radius:6px;transition:all 0.15s;}
+  .nav-btn:hover{color:var(--text);background:var(--surface2);}
+  .nav-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(240,192,64,0.08);}
+  .logout-btn{padding:6px 13px;border:1px solid rgba(255,68,102,0.3);background:none;color:var(--danger);font-family:'Syne',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border-radius:6px;transition:all 0.15s;}
+  .logout-btn:hover{background:rgba(255,68,102,0.08);}
+  main{flex:1;padding:24px;max-width:1200px;width:100%;margin:0 auto;}
+  .profile-wrap{max-width:520px;margin:0 auto;}
+  .profile-hero{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;text-align:center;margin-bottom:16px;}
+  .avatar-ring{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;margin:0 auto 14px;border:3px solid;transition:all 0.3s;}
+  .profile-name{font-size:22px;font-weight:800;margin-bottom:4px;}
+  .profile-team{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:16px;}
+  .profile-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px;}
+  .pstat{background:var(--surface2);border-radius:10px;padding:12px;text-align:center;}
+  .pstat-val{font-size:20px;font-weight:800;color:var(--accent);}
+  .pstat-label{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;margin-top:3px;}
+  .tier-progress-wrap{margin-top:16px;}
+  .tier-progress-bar{background:var(--surface2);border-radius:6px;height:8px;overflow:hidden;margin-top:6px;}
+  .tier-progress-fill{height:100%;border-radius:6px;transition:width 0.5s;}
+  .tier-progress-label{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;display:flex;justify-content:space-between;margin-top:4px;}
+  .edit-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:14px;}
+  .edit-card-title{font-size:13px;font-weight:700;margin-bottom:16px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-family:'JetBrains Mono',monospace;}
+  .field{margin-bottom:14px;}
+  .field-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:6px;display:block;}
+  .field-input{width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:'Syne',sans-serif;font-size:13px;outline:none;transition:border-color 0.15s;}
+  .field-input:focus{border-color:var(--accent);}
+  .save-btn{padding:9px 20px;background:var(--accent);color:#000;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;border:none;border-radius:7px;cursor:pointer;transition:filter 0.15s;}
+  .save-btn:hover{filter:brightness(1.1);}
+  .color-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .color-swatch{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all 0.15s;}
+  .color-swatch.selected{border-color:var(--text);transform:scale(1.15);}
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;}
+  .stat-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:6px;}
+  .stat-value{font-size:26px;font-weight:800;line-height:1;}
+  .stat-sub{font-size:11px;color:var(--muted);margin-top:4px;font-family:'JetBrains Mono',monospace;}
+  .teams-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+  .team-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;}
+  .team-xp-badge{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);background:rgba(240,192,64,0.1);padding:3px 9px;border-radius:20px;border:1px solid rgba(240,192,64,0.3);}
+  .team-bar-wrap{background:var(--surface2);border-radius:4px;height:5px;margin-bottom:8px;overflow:hidden;}
+  .team-bar{height:100%;border-radius:4px;}
+  .lb-filters{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;align-items:center;}
+  .filter-btn{padding:5px 12px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;border-radius:6px;transition:all 0.15s;}
+  .filter-btn:hover,.filter-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(240,192,64,0.06);}
+  .lb-table{width:100%;border-collapse:collapse;}
+  .lb-table th{text-align:left;padding:9px 12px;font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-family:'JetBrains Mono',monospace;border-bottom:1px solid var(--border);font-weight:400;}
+  .lb-table td{padding:10px 12px;border-bottom:1px solid rgba(42,42,56,0.5);vertical-align:middle;}
+  .lb-table tr:last-child td{border-bottom:none;}
+  .lb-table tr:hover td{background:rgba(255,255,255,0.02);}
+  .rank-num{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--muted);}
+  .rank-num.top1{color:#ffd700;}.rank-num.top2{color:#c0c0c0;}.rank-num.top3{color:#cd7f32;}
+  .xp-value{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--accent);}
+  .streak-pill{display:inline-flex;align-items:center;gap:3px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;padding:2px 7px;border-radius:12px;background:rgba(255,100,50,0.1);color:#ff7040;border:1px solid rgba(255,100,50,0.25);}
+  .streak-pill.hot{background:rgba(255,60,20,0.15);color:#ff4020;border-color:rgba(255,60,20,0.4);}
+  .xp-btn{padding:5px 11px;background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;border-radius:6px;cursor:pointer;transition:all 0.15s;}
+  .xp-btn:hover{background:rgba(240,192,64,0.2);}
+  .teams-view-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;}
+  .team-full-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .team-full-header{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--surface2);}
+  .member-row{display:flex;align-items:center;gap:10px;padding:9px 18px;border-bottom:1px solid rgba(42,42,56,0.4);transition:background 0.1s;}
+  .member-row:last-child{border-bottom:none;}
+  .member-row:hover{background:rgba(255,255,255,0.02);}
+  .member-avatar{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;}
+  .add-xp-mini{background:none;border:1px solid var(--border);color:var(--muted);width:26px;height:26px;border-radius:5px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0;}
+  .add-xp-mini:hover{border-color:var(--accent);color:var(--accent);}
+  .add-member-btn{width:100%;padding:10px;background:none;border:none;border-top:1px solid var(--border);color:var(--muted);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:5px;}
+  .add-member-btn:hover{color:var(--accent3);}
+  .log-list{display:flex;flex-direction:column;gap:7px;}
+  .log-entry{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;}
+  .log-icon{width:34px;height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:var(--surface2);}
+  .log-body{flex:1;}
+  .log-who{font-size:13px;font-weight:700;}
+  .log-what{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:1px;}
+  .log-xp{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:800;color:var(--accent);}
+  .log-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+  .log-team-tag{font-size:10px;color:var(--accent2);font-family:'JetBrains Mono',monospace;background:rgba(124,106,255,0.1);padding:2px 6px;border-radius:10px;border:1px solid rgba(124,106,255,0.2);}
+  .empty-log{text-align:center;padding:40px;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:13px;}
+  .perks-section{margin-bottom:28px;}
+  .perks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
+  .perk-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;transition:transform 0.15s;}
+  .perk-card:hover{transform:translateY(-2px);}
+  .perk-actions{display:flex;gap:5px;margin-top:10px;}
+  .perk-edit-btn{flex:1;padding:4px 8px;background:none;border:1px solid var(--border);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:10px;border-radius:5px;cursor:pointer;}
+  .perk-edit-btn:hover{color:var(--text);border-color:var(--accent);}
+  .perk-del-btn{padding:4px 8px;background:none;border:1px solid rgba(255,68,102,0.2);color:var(--danger);font-family:'JetBrains Mono',monospace;font-size:10px;border-radius:5px;cursor:pointer;}
+  .perk-edit-form{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;}
+  .fi{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Syne',sans-serif;font-size:13px;padding:7px 10px;outline:none;width:100%;}
+  .fi:focus{border-color:var(--accent);}
+  .mgmt-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;transition:background 0.1s;}
+  .mgmt-row:hover{background:var(--surface2);}
+  .mgmt-avatar{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+  .mb{padding:5px 12px;border:1px solid var(--border);background:none;color:var(--muted);font-family:'Syne',sans-serif;font-size:12px;cursor:pointer;border-radius:6px;transition:all 0.12s;}
+  .mb:hover{color:var(--text);background:var(--surface2);}
+  .mb.del{color:var(--danger);border-color:rgba(255,68,102,0.3);}
+  .mb.save{background:var(--accent);color:#000;border-color:transparent;font-weight:700;}
+  .mi{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Syne',sans-serif;font-size:13px;padding:6px 10px;outline:none;}
+  .mi:focus{border-color:var(--accent);}
+  .ms{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Syne',sans-serif;font-size:13px;padding:6px 10px;outline:none;}
+  .ms option{background:var(--surface2);}
+  .ef{padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;}
+  .efg{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:12px;}
+  .el{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:4px;}
+  .tier-row{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;margin-bottom:6px;}
+  .tier-edit-form{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:6px;}
+  .tier-edit-grid{display:grid;grid-template-columns:70px 1fr 1fr;gap:10px;margin-bottom:12px;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px);}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;width:340px;max-width:calc(100vw - 32px);}
+  .modal-title{font-size:17px;font-weight:800;margin-bottom:18px;}
+  .modal-field{margin-bottom:12px;}
+  .modal-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:5px;display:block;}
+  .modal-input,.modal-select{width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:'Syne',sans-serif;font-size:13px;outline:none;}
+  .modal-input:focus,.modal-select:focus{border-color:var(--accent);}
+  .modal-select option{background:var(--surface2);}
+  .modal-actions{display:flex;gap:8px;margin-top:18px;}
+  .modal-btn{flex:1;padding:9px;border-radius:7px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:none;}
+  .modal-btn-primary{background:var(--accent);color:#000;}
+  .modal-btn-cancel{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
+  .xp-burst{position:fixed;pointer-events:none;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:20px;color:var(--accent);z-index:999;animation:burstUp 0.9s ease forwards;}
+  @keyframes burstUp{0%{opacity:1;transform:translateY(0) scale(1)}50%{opacity:1;transform:translateY(-38px) scale(1.2)}100%{opacity:0;transform:translateY(-75px) scale(0.9)}}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--success);color:var(--success);font-family:'JetBrains Mono',monospace;font-size:12px;padding:10px 20px;border-radius:8px;z-index:400;white-space:nowrap;animation:tIn 0.2s ease,tOut 0.2s ease 1.8s forwards;}
+  @keyframes tIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+  @keyframes tOut{to{opacity:0;transform:translateX(-50%) translateY(8px)}}
+  .tier-banner{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid #ffd700;border-radius:10px;padding:12px 22px;z-index:300;text-align:center;white-space:nowrap;animation:tIn 0.3s ease,tOut 0.3s ease 2.7s forwards;}
+  .banner-title{font-size:14px;font-weight:800;color:#ffd700;}
+  .banner-sub{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+  @media(max-width:680px){.stats-row{grid-template-columns:repeat(2,1fr);}.nav-btn{padding:5px 9px;font-size:11px;}main{padding:14px;}.tier-edit-grid{grid-template-columns:60px 1fr;}}
+</style>
+</head>
+<body>
+<div class="app" id="app"><div class="loading"><div class="spinner"></div>Loading LevelUp...</div></div>
+<div id="modal-overlay" class="modal-overlay" style="display:none" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="modal-title"></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+<script>
+// ── SUPABASE INIT ─────────────────────────────────────────────
+const SUPABASE_URL = 'https://noxkehkqxxbpvfljoeoq.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5veGtlaGtxeHhicHZmbGpvZW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMzAyMzIsImV4cCI6MjA5MDkwNjIzMn0.Yg4ttXj-6DvB4mdpwPoXcew8p32J5LnDSTFkIaYv48Q';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── CONSTANTS ─────────────────────────────────────────────────
+const TEAM_COLORS={Data:'#f0c040',Apps:'#ff7040',Systems:'#7c6aff',Support:'#40e0c0',Network:'#40a0ff'};
+const XP_TYPES=[{label:'Module Completed',icon:'📘',xp:50},{label:'Course Finished',icon:'🎓',xp:150},{label:'Certification',icon:'📜',xp:300},{label:'Quiz Passed',icon:'✅',xp:30},{label:'Workshop Attended',icon:'🛠️',xp:75},{label:'Mentored Teammate',icon:'🤝',xp:100},{label:'Lab Completed',icon:'⚗️',xp:60},{label:'Custom',icon:'⭐',xp:0}];
+const AVATAR_COLORS=['#7c6aff','#40e0c0','#f0c040','#ff7040','#40a0ff','#e040c0','#60d080','#ff4466','#ff9020','#20d0ff'];
+const ADMIN_USER='admin';
+const ADMIN_PASS='Admin@LevelUp1';
+
+// ── STATE ─────────────────────────────────────────────────────
+let currentUser = null;
+let view = 'dashboard';
+let lbFilter = 'all';
+let logFilter = 'all';
+let mgmtFilter = 'all';
+let mgmtSearch = '';
+let editingMemberId = null;
+let editingPerkId = null;
+let editingTierId = null;
+let loginTab = 'user';
+let loginErr = '';
+let nextId = 1000;
+
+// ── CACHED DATA ───────────────────────────────────────────────
+let members = [];
+let tiers = [];
+let perks = [];
+let xpLog = [];
+let teams = [];
+
+// ── DATA LOADING ──────────────────────────────────────────────
+async function loadAll() {
+  const [t, p, m, l, tm] = await Promise.all([
+    sb.from('tiers').select('*').order('min_xp'),
+    sb.from('perks').select('*'),
+    sb.from('users').select('*, teams(name, color)').order('xp', {ascending: false}),
+    sb.from('xp_log').select('*, users(name, nickname)').order('created_at', {ascending: false}).limit(100),
+    sb.from('teams').select('*').order('name'),
+  ]);
+  tiers = (t.data || []).map(x => ({...x, min: x.min_xp}));
+  perks = (p.data || []).map(x => ({...x, tierId: x.tier_id, desc: x.description}));
+  members = (m.data || []).map(x => ({
+    ...x,
+    team: x.teams?.name || x.team_id,
+    avatarColor: x.avatar_color || '#7c6aff',
+    nickname: x.nickname || '',
+    streak: x.streak || 0,
+    xp: x.xp || 0,
+  }));
+  xpLog = (l.data || []).map(x => ({
+    ...x,
+    name: x.users?.nickname || x.users?.name || 'Unknown',
+    team: members.find(m => m.id === x.user_id)?.team || '',
+    type: x.activity_type,
+    xp: x.xp_amount,
+    time: x.created_at,
+  }));
+  teams = (tm.data || []);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function sortedTiers(){return[...tiers].sort((a,b)=>a.min-b.min);}
+function getTier(xp){const st=sortedTiers();return st.slice().reverse().find(t=>xp>=t.min)||st[0];}
+function getNextTier(xp){return sortedTiers().find(t=>xp<t.min);}
+function tierProgress(xp){const t=getTier(xp);const n=getNextTier(xp);if(!n)return 100;return Math.round((xp-t.min)/(n.min-t.min)*100);}
+function tierBadge(t,small){if(!t)return'';return`<span style="display:inline-flex;align-items:center;gap:4px;padding:${small?'1px 6px':'3px 10px'};border-radius:20px;font-size:${small?'9px':'11px'};font-weight:700;font-family:'JetBrains Mono',monospace;color:${t.color};background:${t.color}20;border:1px solid ${t.color}50">${t.icon} ${t.name}</span>`;}
+function dispName(m){return m.nickname||m.name;}
+function ini(m){const n=dispName(m);return n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);}
+function timeAgo(d){const m=Math.floor((Date.now()-new Date(d))/60000);if(m<2)return'just now';if(m<60)return m+'m ago';const h=Math.floor(m/60);if(h<24)return h+'h ago';return Math.floor(h/24)+'d ago';}
+function teamXP(t){return members.filter(m=>m.team===t).reduce((s,m)=>s+m.xp,0);}
+function allTeams(){return [...new Set(members.map(m=>m.team))].filter(Boolean).sort();}
+
+// ── RENDER ROOT ───────────────────────────────────────────────
+function render(){
+  const app=document.getElementById('app');
+  if(!currentUser){app.innerHTML=renderLogin();return;}
+  if(currentUser==='admin'){
+    app.innerHTML=`<header><div class="logo">LEVEL<span>UP</span></div><nav>${['dashboard','leaderboard','teams','log','perks','members','tiers'].map(v=>`<button class="nav-btn ${view===v?'active':''}" onclick="setView('${v}')">${v.charAt(0).toUpperCase()+v.slice(1)}</button>`).join('')}<button class="logout-btn" onclick="logout()">Log out</button></nav></header><main id="main-content">${renderAdminView()}</main>`;
+  } else {
+    app.innerHTML=`<header><div class="logo">LEVEL<span>UP</span></div><nav><span style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-right:8px">👋 ${dispName(currentUser)}</span><button class="logout-btn" onclick="logout()">Log out</button></nav></header><main id="main-content">${renderUserProfile()}</main>`;
+  }
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────
+function renderLogin(){
+  return`<div class="login-wrap"><div class="login-card">
+    <div class="login-logo">LEVEL<span>UP</span></div>
+    <div class="login-sub">Learning Tracker</div>
+    <div class="login-tabs">
+      <button class="login-tab ${loginTab==='user'?'active':''}" onclick="loginTab='user';loginErr='';render()">Team Member</button>
+      <button class="login-tab ${loginTab==='admin'?'active':''}" onclick="loginTab='admin';loginErr='';render()">Admin</button>
+    </div>
+    ${loginTab==='user'?`
+      <div class="login-field"><label class="login-label">Email</label><input class="login-input" id="l-email" type="email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="login-field"><label class="login-label">Password</label><input class="login-input" id="l-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    `:`
+      <div class="login-field"><label class="login-label">Username</label><input class="login-input" id="l-user" placeholder="admin" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="login-field"><label class="login-label">Password</label><input class="login-input" id="l-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    `}
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    ${loginErr?`<div class="login-err">${loginErr}</div>`:''}
+  </div></div>`;
+}
+
+async function doLogin(){
+  if(loginTab==='admin'){
+    const u=(document.getElementById('l-user')?.value||'').trim();
+    const p=(document.getElementById('l-pass')?.value||'').trim();
+    if(u===ADMIN_USER&&p===ADMIN_PASS){currentUser='admin';view='dashboard';render();}
+    else{loginErr='Invalid admin credentials';render();}
+  } else {
+    const email=(document.getElementById('l-email')?.value||'').trim().toLowerCase();
+    const pass=(document.getElementById('l-pass')?.value||'').trim();
+    const m=members.find(m=>m.email.toLowerCase()===email&&m.password===pass);
+    if(m){currentUser=m;render();}
+    else{loginErr='Email or password not recognised';render();}
+  }
+}
+
+function logout(){currentUser=null;loginErr='';render();}
+
+// ── USER PROFILE ──────────────────────────────────────────────
+function renderUserProfile(){
+  const m=currentUser;
+  const tier=getTier(m.xp);
+  const next=getNextTier(m.xp);
+  const pct=tierProgress(m.xp);
+  const myPerks=perks.filter(p=>p.tierId===tier.id);
+  return`<div class="profile-wrap">
+    <div class="profile-hero">
+      <div class="avatar-ring" style="background:${m.avatarColor}22;color:${m.avatarColor};border-color:${m.avatarColor}">${ini(m)}</div>
+      <div class="profile-name">${dispName(m)}</div>
+      <div class="profile-team" style="color:${TEAM_COLORS[m.team]||'#888'}">${m.team} Team</div>
+      ${tierBadge(tier,false)}
+      <div class="profile-stats">
+        <div class="pstat"><div class="pstat-val">${m.xp.toLocaleString()}</div><div class="pstat-label">Total XP</div></div>
+        <div class="pstat"><div class="pstat-val">${m.streak}</div><div class="pstat-label">Day Streak</div></div>
+        <div class="pstat"><div class="pstat-val">${members.filter(x=>x.xp>m.xp).length+1}</div><div class="pstat-label">Rank</div></div>
+      </div>
+      <div class="tier-progress-wrap">
+        <div class="tier-progress-bar"><div class="tier-progress-fill" style="width:${pct}%;background:linear-gradient(90deg,${tier.color}88,${tier.color})"></div></div>
+        <div class="tier-progress-label"><span>${tier.icon} ${tier.name}</span><span>${next?`${next.min-m.xp} XP to ${next.icon} ${next.name}`:'✦ Max tier reached'}</span></div>
+      </div>
+    </div>
+    ${myPerks.length?`<div class="edit-card"><div class="edit-card-title">Your Perks</div><div style="display:flex;flex-wrap:wrap;gap:10px">${myPerks.map(p=>`<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px"><span style="font-size:18px">${p.icon}</span><div><div style="font-size:13px;font-weight:700">${p.name}</div><div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">${p.desc}</div></div></div>`).join('')}</div></div>`:''}
+    <div class="edit-card">
+      <div class="edit-card-title">Edit Profile</div>
+      <div class="field"><label class="field-label">Nickname</label><input class="field-input" id="p-nick" value="${m.nickname||''}" placeholder="How you want to be known"></div>
+      <button class="save-btn" onclick="saveNickname()">Save Nickname</button>
+    </div>
+    <div class="edit-card">
+      <div class="edit-card-title">Avatar Color</div>
+      <div class="color-grid">${AVATAR_COLORS.map(c=>`<div class="color-swatch ${m.avatarColor===c?'selected':''}" style="background:${c}" onclick="saveAvatarColor('${c}')"></div>`).join('')}</div>
+    </div>
+    <div class="edit-card">
+      <div class="edit-card-title">Change Password</div>
+      <div class="field"><label class="field-label">Current Password</label><input class="field-input" id="p-cur" type="password" placeholder="Current password"></div>
+      <div class="field"><label class="field-label">New Password</label><input class="field-input" id="p-new" type="password" placeholder="New password"></div>
+      <div class="field"><label class="field-label">Confirm New Password</label><input class="field-input" id="p-con" type="password" placeholder="Repeat new password"></div>
+      <button class="save-btn" onclick="savePassword()">Update Password</button>
+    </div>
+  </div>`;
+}
+
+async function saveNickname(){
+  const nick=(document.getElementById('p-nick')?.value||'').trim();
+  await sb.from('users').update({nickname:nick}).eq('id',currentUser.id);
+  currentUser.nickname=nick;
+  const m=members.find(m=>m.id===currentUser.id);
+  if(m)m.nickname=nick;
+  showToast('Nickname updated');render();
+}
+async function saveAvatarColor(c){
+  await sb.from('users').update({avatar_color:c}).eq('id',currentUser.id);
+  currentUser.avatarColor=c;
+  const m=members.find(m=>m.id===currentUser.id);
+  if(m)m.avatarColor=c;
+  showToast('Avatar updated');render();
+}
+async function savePassword(){
+  const cur=document.getElementById('p-cur')?.value||'';
+  const nw=document.getElementById('p-new')?.value||'';
+  const con=document.getElementById('p-con')?.value||'';
+  if(cur!==currentUser.password){showToast('Current password incorrect');return;}
+  if(nw.length<6){showToast('Password must be 6+ characters');return;}
+  if(nw!==con){showToast('Passwords do not match');return;}
+  await sb.from('users').update({password:nw}).eq('id',currentUser.id);
+  currentUser.password=nw;
+  showToast('Password updated!');render();
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────
+async function setView(v){
+  view=v;editingMemberId=null;editingPerkId=null;editingTierId=null;
+  showLoading();
+  await loadAll();
+  render();
+}
+function showLoading(){
+  const mc=document.getElementById('main-content');
+  if(mc)mc.innerHTML=`<div class="loading" style="min-height:300px"><div class="spinner"></div></div>`;
+}
+function renderAdminView(){
+  if(view==='dashboard')return renderDashboard();
+  if(view==='leaderboard')return renderLeaderboard();
+  if(view==='teams')return renderTeamsView();
+  if(view==='log')return renderLog();
+  if(view==='perks')return renderPerks();
+  if(view==='members')return renderMembers();
+  if(view==='tiers')return renderTiers();
+  return '';
+}
+
+function renderDashboard(){
+  const AT=allTeams();
+  const total=members.reduce((s,m)=>s+m.xp,0);
+  const avg=Math.round(total/(members.length||1));
+  const top=[...members].sort((a,b)=>b.xp-a.xp)[0]||{name:'—',xp:0,team:''};
+  const topS=[...members].sort((a,b)=>b.streak-a.streak)[0]||{streak:0,name:'—'};
+  const maxTXP=Math.max(1,...AT.map(t=>teamXP(t)));
+  const ac=['var(--accent)','var(--accent2)','var(--accent3)','var(--danger)'];
+  return`<div class="stats-row">${[['Total XP',total.toLocaleString(),members.length+' learners'],['Avg XP',avg.toLocaleString(),'per person'],['Top Performer',top.name,top.xp.toLocaleString()+' XP · '+top.team],['Longest Streak','🔥 '+topS.streak+'d',dispName(topS)]].map((s,i)=>`<div class="stat-card" style="border-bottom:2px solid ${ac[i]}"><div class="stat-label">${s[0]}</div><div class="stat-value" style="font-size:${i>1?'16px':'26px'};margin-top:${i>1?'4px':'0'}">${s[1]}</div><div class="stat-sub">${s[2]}</div></div>`).join('')}</div>
+  <div class="teams-grid">${AT.map(t=>{const tx=teamXP(t);const pct=Math.round(tx/maxTXP*100);const ms=members.filter(m=>m.team===t);const topM=[...ms].sort((a,b)=>b.xp-a.xp)[0];const col=TEAM_COLORS[t]||'#888';return`<div class="team-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div style="font-size:15px;font-weight:700;color:${col}">${t}</div><div class="team-xp-badge">${tx.toLocaleString()} XP</div></div><div class="team-bar-wrap"><div class="team-bar" style="width:${pct}%;background:linear-gradient(90deg,${col}88,${col})"></div></div><div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;display:flex;justify-content:space-between"><span>${ms.length} members</span><span>⭐ ${topM?dispName(topM):'—'}</span></div></div>`;}).join('')}</div>`;
+}
+
+function renderLeaderboard(){
+  const AT=allTeams();
+  let sorted=[...members].sort((a,b)=>b.xp-a.xp);
+  if(lbFilter!=='all')sorted=sorted.filter(m=>m.team===lbFilter);
+  return`<div class="lb-filters"><button class="filter-btn ${lbFilter==='all'?'active':''}" onclick="lbFilter='all';render()">All</button>${AT.map(t=>`<button class="filter-btn ${lbFilter===t?'active':''}" onclick="lbFilter='${t}';render()">${t}</button>`).join('')}<button class="xp-btn" style="margin-left:auto" onclick="openAwardModal()">+ Award XP</button></div>
+  <table class="lb-table"><thead><tr><th>#</th><th>Member</th><th>Team</th><th>Tier</th><th>XP</th><th>Streak</th><th>Next Tier</th><th></th></tr></thead><tbody>
+  ${sorted.map((m,i)=>{const tier=getTier(m.xp);const next=getNextTier(m.xp);const pct=tierProgress(m.xp);const rc=i===0?'top1':i===1?'top2':i===2?'top3':'';const col=TEAM_COLORS[m.team]||'#888';return`<tr><td><div class="rank-num ${rc}">${i+1}</div></td><td><div style="display:flex;align-items:center;gap:9px"><div class="member-avatar" style="background:${m.avatarColor}22;color:${m.avatarColor};width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${ini(m)}</div><div style="font-size:13px;font-weight:700">${dispName(m)}</div></div></td><td><span style="color:${col};font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700">${m.team}</span></td><td>${tierBadge(tier,false)}</td><td><span class="xp-value">${m.xp.toLocaleString()}</span></td><td><span class="streak-pill ${m.streak>=7?'hot':''}">${m.streak>=1?'🔥':''} ${m.streak}d</span></td><td><div style="min-width:90px"><div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">${next?next.min-m.xp+' to '+next.name:'✦ MAX'}</div><div style="background:var(--surface2);border-radius:4px;height:4px;margin-top:3px;overflow:hidden"><div style="height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent2),var(--accent3));width:${pct}%"></div></div></div></td><td><button class="xp-btn" onclick="openAwardModal('${m.id}')">+XP</button></td></tr>`;}).join('')}</tbody></table>`;
+}
+
+function renderTeamsView(){
+  const AT=allTeams();
+  return`<div class="teams-view-grid">${AT.map(t=>{const ms=[...members.filter(m=>m.team===t)].sort((a,b)=>b.xp-a.xp);const total=ms.reduce((s,m)=>s+m.xp,0);const col=TEAM_COLORS[t]||'#888';return`<div class="team-full-card"><div class="team-full-header"><div style="font-size:14px;font-weight:800;color:${col}">${t} Team</div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);font-weight:700">${total.toLocaleString()} XP</div></div><div>${ms.map(m=>{const tier=getTier(m.xp);return`<div class="member-row"><div class="member-avatar" style="background:${m.avatarColor}22;color:${m.avatarColor}">${ini(m)}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">${dispName(m)}</div><div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);font-weight:700">${m.xp.toLocaleString()} XP</span>${tierBadge(tier,true)}${m.streak>0?`<span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#ff7040">🔥${m.streak}d</span>`:''}</div></div><button class="add-xp-mini" onclick="openAwardModal('${m.id}')">+</button></div>`;}).join('')}</div><button class="add-member-btn" onclick="openAddMemberModal('${t}')">+ Add Member</button></div>`;}).join('')}</div>`;
+}
+
+function renderLog(){
+  const AT=allTeams();
+  let filtered=logFilter==='all'?xpLog:xpLog.filter(e=>e.team===logFilter);
+  return`<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px"><div style="font-size:18px;font-weight:800">XP Activity Log</div><button class="xp-btn" onclick="openAwardModal()">+ Award XP</button></div>
+  <div class="lb-filters" style="margin-bottom:18px"><button class="filter-btn ${logFilter==='all'?'active':''}" onclick="logFilter='all';render()">All</button>${AT.map(t=>`<button class="filter-btn ${logFilter===t?'active':''}" onclick="logFilter='${t}';render()">${t}</button>`).join('')}</div>
+  <div class="log-list">${filtered.length===0?`<div class="empty-log">⚡ No XP awarded yet</div>`:filtered.map(e=>`<div class="log-entry"><div class="log-icon">${e.icon||'⭐'}</div><div class="log-body"><div class="log-who">${e.name} <span class="log-team-tag">${e.team}</span></div><div class="log-what">${e.type}</div></div><div style="text-align:right"><div class="log-xp">+${e.xp} XP</div><div class="log-time">${timeAgo(e.time)}</div></div></div>`).join('')}</div>`;
+}
+
+function renderPerks(){
+  const st=sortedTiers();
+  return`<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:22px"><div style="font-size:18px;font-weight:800">Perks <span style="font-size:13px;color:var(--muted);font-weight:400">${perks.length} total</span></div><button class="xp-btn" style="background:rgba(64,224,192,0.1);border-color:rgba(64,224,192,0.3);color:var(--accent3)" onclick="editingPerkId='new';render()">+ Add Perk</button></div>
+  ${editingPerkId==='new'?renderPerkForm(null):''}
+  ${st.map(t=>{const tp=perks.filter(p=>p.tierId===t.id);const eligible=members.filter(m=>getTier(m.xp).id===t.id);return`<div class="perks-section"><div style="font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">${tierBadge(t,false)}<span style="color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace">${t.min}+ XP · ${eligible.length} eligible · ${tp.length} perks</span></div><div class="perks-grid">${tp.map(p=>editingPerkId===p.id?renderPerkForm(p):`<div class="perk-card"><div style="font-size:24px;margin-bottom:7px">${p.icon}</div><div style="font-size:13px;font-weight:700;margin-bottom:3px">${p.name}</div><div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">${p.desc}</div><div class="perk-actions"><button class="perk-edit-btn" onclick="editingPerkId='${p.id}';render()">Edit</button><button class="perk-del-btn" onclick="deletePerk('${p.id}')">✕</button></div></div>`).join('')}<div style="background:none;border:1px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;min-height:80px;cursor:pointer;color:var(--muted);font-size:12px;font-family:'JetBrains Mono',monospace" onclick="editingPerkId='new';render()"><span style="font-size:18px">＋</span>Add perk</div>${eligible.length?`<div class="perk-card" style="border-style:dashed;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:80px"><div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px">Eligible</div><div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center">${eligible.map(m=>`<span style="font-size:11px;font-weight:700;color:${m.avatarColor}">${dispName(m).split(' ')[0]}</span>`).join('')}</div></div>`:''}</div></div>`;}).join('')}`;
+}
+
+function renderPerkForm(p){
+  const isNew=!p;const st=sortedTiers();
+  return`<div class="perk-edit-form" style="margin-bottom:${isNew?'22px':'0'}"><div style="font-size:13px;font-weight:700;margin-bottom:10px">${isNew?'New perk':'Edit perk'}</div><div style="display:grid;grid-template-columns:56px 1fr;gap:8px;margin-bottom:8px"><div><div class="el">Icon</div><input class="fi" id="pe-icon" value="${isNew?'🎁':p.icon}" style="text-align:center;font-size:18px;padding:6px"></div><div><div class="el">Name</div><input class="fi" id="pe-name" value="${isNew?'':p.name}" placeholder="Perk name"></div></div><div style="margin-bottom:8px"><div class="el">Description</div><input class="fi" id="pe-desc" value="${isNew?'':p.desc}" placeholder="Short description"></div><div style="margin-bottom:12px"><div class="el">Tier</div><select class="fi" id="pe-tier">${st.map(t=>`<option value="${t.id}" ${!isNew&&p.tierId===t.id?'selected':''}>${t.icon} ${t.name}</option>`).join('')}</select></div><div style="display:flex;gap:8px"><button class="mb save" onclick="${isNew?'submitAddPerk()':'submitEditPerk(\''+p.id+'\')'}">${isNew?'Add':'Save'}</button><button class="mb" onclick="editingPerkId=null;render()">Cancel</button></div></div>`;
+}
+async function submitAddPerk(){
+  const icon=(document.getElementById('pe-icon').value||'🎁').trim();
+  const name=(document.getElementById('pe-name').value||'').trim();
+  const desc=(document.getElementById('pe-desc').value||'').trim();
+  const tierId=document.getElementById('pe-tier').value;
+  if(!name)return;
+  const {data}=await sb.from('perks').insert({icon,name,description:desc,tier_id:tierId}).select().single();
+  if(data){perks.push({...data,tierId:data.tier_id,desc:data.description});}
+  editingPerkId=null;showToast(name+' added');render();
+}
+async function submitEditPerk(id){
+  const p=perks.find(p=>String(p.id)===String(id));if(!p)return;
+  const icon=(document.getElementById('pe-icon').value||'🎁').trim();
+  const name=(document.getElementById('pe-name').value||p.name).trim();
+  const desc=(document.getElementById('pe-desc').value||'').trim();
+  const tierId=document.getElementById('pe-tier').value;
+  await sb.from('perks').update({icon,name,description:desc,tier_id:tierId}).eq('id',id);
+  p.icon=icon;p.name=name;p.desc=desc;p.tierId=tierId;
+  editingPerkId=null;showToast(p.name+' updated');render();
+}
+async function deletePerk(id){
+  const p=perks.find(p=>String(p.id)===String(id));if(!p)return;
+  if(!confirm('Remove "'+p.name+'"?'))return;
+  await sb.from('perks').delete().eq('id',id);
+  perks=perks.filter(p=>String(p.id)!==String(id));showToast(p.name+' removed');render();
+}
+
+function renderMembers(){
+  const AT=allTeams();
+  const filtered=members.filter(m=>(mgmtFilter==='all'||m.team===mgmtFilter)&&(dispName(m).toLowerCase().includes(mgmtSearch.toLowerCase())||m.team.toLowerCase().includes(mgmtSearch.toLowerCase())||(m.email||'').toLowerCase().includes(mgmtSearch.toLowerCase())));
+  return`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:18px"><div style="font-size:18px;font-weight:800">Members <span style="font-size:13px;color:var(--muted);font-weight:400">${members.length} total</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="xp-btn" onclick="exportCSV()">Export CSV</button><button class="xp-btn" style="background:rgba(64,224,192,0.1);border-color:rgba(64,224,192,0.3);color:var(--accent3)" onclick="editingMemberId='new';render()">+ Add Member</button></div></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center"><input class="mi" placeholder="Search name, email, team..." style="flex:1;min-width:160px;max-width:280px" value="${mgmtSearch}" oninput="mgmtSearch=this.value;render()"><select class="ms" onchange="mgmtFilter=this.value;render()"><option value="all" ${mgmtFilter==='all'?'selected':''}>All teams</option>${AT.map(t=>`<option value="${t}" ${mgmtFilter===t?'selected':''}>${t}</option>`).join('')}</select></div>
+  ${editingMemberId==='new'?renderMemberForm(null):''}
+  <div style="display:flex;flex-direction:column;gap:6px">${filtered.length===0?`<div class="empty-log">No members found</div>`:''}${filtered.map(m=>editingMemberId===m.id?renderMemberForm(m):renderMgmtRow(m)).join('')}</div>`;
+}
+function renderMgmtRow(m){
+  const tier=getTier(m.xp);const col=TEAM_COLORS[m.team]||'#888';
+  return`<div class="mgmt-row"><div class="mgmt-avatar" style="background:${m.avatarColor}22;color:${m.avatarColor}">${ini(m)}</div><div style="flex:1;min-width:90px"><div style="font-size:13px;font-weight:700">${dispName(m)}</div><div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">${m.email||''}</div></div><div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap"><span style="color:${col};font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700">${m.team}</span>${tierBadge(tier,true)}<span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent)">${m.xp.toLocaleString()} XP</span></div><div style="display:flex;gap:6px"><button class="mb" onclick="editingMemberId='${m.id}';render()">Edit</button><button class="mb del" onclick="removeMember('${m.id}')">Remove</button></div></div>`;
+}
+function renderMemberForm(m){
+  const isNew=!m;const AT=allTeams();
+  return`<div class="ef" style="margin-bottom:6px"><div style="font-size:13px;font-weight:700;margin-bottom:12px">${isNew?'Add new member':'Edit: '+dispName(m)}</div><div class="efg"><div><div class="el">Name</div><input class="mi" id="ef-name" style="width:100%" value="${isNew?'':m.name}" placeholder="Full name"></div><div><div class="el">Nickname</div><input class="mi" id="ef-nick" style="width:100%" value="${isNew?'':m.nickname||''}" placeholder="Optional"></div><div><div class="el">Email</div><input class="mi" id="ef-email" style="width:100%" value="${isNew?'':m.email||''}" placeholder="email@company.com"></div><div><div class="el">Password</div><input class="mi" id="ef-pass" style="width:100%" value="${isNew?'':m.password||''}" placeholder="Password"></div><div><div class="el">Team</div><select class="ms" id="ef-team" style="width:100%">${AT.map(t=>`<option value="${t}" ${!isNew&&m.team===t?'selected':''}>${t}</option>`).join('')}</select></div><div><div class="el">XP</div><input class="mi" id="ef-xp" type="number" style="width:100%" value="${isNew?0:m.xp}" min="0"></div><div><div class="el">Streak (days)</div><input class="mi" id="ef-streak" type="number" style="width:100%" value="${isNew?0:m.streak}" min="0"></div></div><div style="display:flex;gap:8px"><button class="mb save" onclick="${isNew?'submitAddMember()':'submitEditMember(\''+m.id+'\')'}">${isNew?'Add member':'Save'}</button><button class="mb" onclick="editingMemberId=null;render()">Cancel</button></div></div>`;
+}
+async function submitAddMember(){
+  const name=(document.getElementById('ef-name').value||'').trim();
+  const nickname=(document.getElementById('ef-nick').value||'').trim();
+  const email=(document.getElementById('ef-email').value||'').trim();
+  const password=(document.getElementById('ef-pass').value||'').trim();
+  const teamName=document.getElementById('ef-team').value;
+  const xp=Math.max(0,parseInt(document.getElementById('ef-xp').value)||0);
+  const streak=Math.max(0,parseInt(document.getElementById('ef-streak').value)||0);
+  if(!name||!email)return;
+  const team=teams.find(t=>t.name===teamName);
+  const {data}=await sb.from('users').insert({name,nickname,email,password,team_id:team?.id,xp,streak,avatar_color:AVATAR_COLORS[members.length%AVATAR_COLORS.length],role:'member'}).select().single();
+  if(data)members.push({...data,team:teamName,avatarColor:data.avatar_color,nickname:data.nickname||''});
+  editingMemberId=null;showToast(name+' added');render();
+}
+async function submitEditMember(id){
+  const m=members.find(m=>String(m.id)===String(id));if(!m)return;
+  const name=(document.getElementById('ef-name').value||m.name).trim();
+  const nickname=(document.getElementById('ef-nick').value||'').trim();
+  const email=(document.getElementById('ef-email').value||m.email).trim();
+  const password=(document.getElementById('ef-pass').value||m.password).trim();
+  const teamName=document.getElementById('ef-team').value;
+  const xp=Math.max(0,parseInt(document.getElementById('ef-xp').value)||0);
+  const streak=Math.max(0,parseInt(document.getElementById('ef-streak').value)||0);
+  const team=teams.find(t=>t.name===teamName);
+  await sb.from('users').update({name,nickname,email,password,team_id:team?.id,xp,streak}).eq('id',id);
+  m.name=name;m.nickname=nickname;m.email=email;m.password=password;m.team=teamName;m.xp=xp;m.streak=streak;
+  editingMemberId=null;showToast(dispName(m)+' updated');render();
+}
+async function removeMember(id){
+  const m=members.find(m=>String(m.id)===String(id));if(!m)return;
+  if(!confirm('Remove '+dispName(m)+'?'))return;
+  await sb.from('users').delete().eq('id',id);
+  members=members.filter(m=>String(m.id)!==String(id));showToast(dispName(m)+' removed');render();
+}
+function exportCSV(){
+  const rows=[['Name','Nickname','Email','Team','XP','Streak','Tier'],...members.map(m=>[m.name,m.nickname||'',m.email||'',m.team,m.xp,m.streak,getTier(m.xp).name])];
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='levelup-members.csv';a.click();showToast('CSV exported');
+}
+
+function renderTiers(){
+  const st=sortedTiers();
+  return`<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px"><div style="font-size:18px;font-weight:800">Tiers <span style="font-size:13px;color:var(--muted);font-weight:400">${tiers.length} tiers</span></div><button class="xp-btn" style="background:rgba(64,224,192,0.1);border-color:rgba(64,224,192,0.3);color:var(--accent3)" onclick="editingTierId='new';render()">+ Add Tier</button></div>
+  <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:20px">Changes here update tiers across the whole app.</div>
+  ${editingTierId==='new'?renderTierForm(null):''}
+  <div>${st.map(t=>editingTierId===t.id?renderTierForm(t):`<div class="tier-row"><div style="font-size:22px;width:40px;text-align:center;flex-shrink:0">${t.icon}</div><div style="flex:1;min-width:120px"><div style="font-size:14px;font-weight:700;color:${t.color}">${t.name}</div><div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px">${t.min===0?'Starting tier':t.min.toLocaleString()+'+ XP'} · ${members.filter(m=>getTier(m.xp).id===t.id).length} members · ${perks.filter(p=>String(p.tierId)===String(t.id)).length} perks</div></div><div style="display:flex;gap:6px"><button class="mb" onclick="editingTierId='${t.id}';render()">Edit</button>${tiers.length>1?`<button class="mb del" onclick="deleteTier('${t.id}')">Remove</button>`:''}</div></div>`).join('')}</div>`;
+}
+function renderTierForm(t){
+  const isNew=!t;
+  return`<div class="tier-edit-form" style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:14px">${isNew?'Add new tier':'Edit tier'}</div><div class="tier-edit-grid"><div><div class="el">Icon</div><input class="mi" id="te-icon" value="${isNew?'🏅':t.icon}" style="width:100%;text-align:center;font-size:20px;padding:6px"></div><div><div class="el">Name</div><input class="mi" id="te-name" value="${isNew?'':t.name}" placeholder="e.g. Expert" style="width:100%"></div><div><div class="el">Min XP</div><input class="mi" id="te-min" type="number" value="${isNew?'':t.min}" placeholder="0" min="0" style="width:100%" ${!isNew&&t.min===0?'disabled':''}></div></div><div style="margin-bottom:14px"><div class="el">Color (hex)</div><div style="display:flex;gap:8px;align-items:center"><input class="mi" id="te-color" value="${isNew?'#a0a0ff':t.color}" style="flex:1" oninput="document.getElementById('te-cp').style.background=this.value"><div id="te-cp" style="width:32px;height:32px;border-radius:6px;border:1px solid var(--border);background:${isNew?'#a0a0ff':t.color}"></div></div></div><div style="display:flex;gap:8px"><button class="mb save" onclick="${isNew?'submitAddTier()':'submitEditTier(\''+t.id+'\')'}">${isNew?'Add tier':'Save'}</button><button class="mb" onclick="editingTierId=null;render()">Cancel</button></div></div>`;
+}
+async function submitAddTier(){
+  const icon=(document.getElementById('te-icon').value||'🏅').trim();
+  const name=(document.getElementById('te-name').value||'').trim();
+  const min_xp=Math.max(0,parseInt(document.getElementById('te-min').value)||0);
+  const color=(document.getElementById('te-color').value||'#a0a0ff').trim();
+  if(!name)return;
+  const {data}=await sb.from('tiers').insert({icon,name,min_xp,color}).select().single();
+  if(data)tiers.push({...data,min:data.min_xp});
+  editingTierId=null;showToast(name+' added');render();
+}
+async function submitEditTier(id){
+  const t=tiers.find(t=>String(t.id)===String(id));if(!t)return;
+  const icon=(document.getElementById('te-icon').value||t.icon).trim();
+  const name=(document.getElementById('te-name').value||t.name).trim();
+  const min_xp=t.min===0?0:Math.max(0,parseInt(document.getElementById('te-min').value)||0);
+  const color=(document.getElementById('te-color').value||t.color).trim();
+  await sb.from('tiers').update({icon,name,min_xp,color}).eq('id',id);
+  t.icon=icon;t.name=name;t.min=min_xp;t.color=color;
+  editingTierId=null;showToast(t.name+' updated');render();
+}
+async function deleteTier(id){
+  if(tiers.length<=1){showToast('Need at least one tier');return;}
+  const t=tiers.find(t=>String(t.id)===String(id));if(!t)return;
+  if(!confirm('Remove "'+t.name+'"?'))return;
+  const st=sortedTiers();const idx=st.findIndex(x=>String(x.id)===String(id));
+  const fallback=st[idx-1]||st[idx+1];
+  await sb.from('perks').update({tier_id:fallback.id}).eq('tier_id',id);
+  await sb.from('tiers').delete().eq('id',id);
+  perks.forEach(p=>{if(String(p.tierId)===String(id))p.tierId=fallback.id;});
+  tiers=tiers.filter(t=>String(t.id)!==String(id));showToast(t.name+' removed');render();
+}
+
+// ── MODALS ────────────────────────────────────────────────────
+function openAwardModal(memberId){
+  document.getElementById('modal-title').textContent='⭐ Award XP';
+  const sel=memberId?members.find(m=>String(m.id)===String(memberId)):null;
+  document.getElementById('modal-body').innerHTML=`<div class="modal-field"><label class="modal-label">Member</label><select class="modal-select" id="m-member">${members.map(m=>`<option value="${m.id}" ${sel&&String(sel.id)===String(m.id)?'selected':''}>${dispName(m)} (${m.team})</option>`).join('')}</select></div><div class="modal-field"><label class="modal-label">Activity</label><select class="modal-select" id="m-type" onchange="document.getElementById('cxp').style.display=this.value=='7'?'block':'none'">${XP_TYPES.map((x,i)=>`<option value="${i}">${x.icon} ${x.label}${x.xp?' (+'+x.xp+' XP)':''}</option>`).join('')}</select></div><div class="modal-field" id="cxp" style="display:none"><label class="modal-label">Custom XP</label><input class="modal-input" type="number" id="m-cxp" value="50" min="1"></div><div class="modal-field"><label class="modal-label">Note (optional)</label><input class="modal-input" id="m-note" placeholder="e.g. Completed Azure Fundamentals"></div><div class="modal-actions"><button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancel</button><button class="modal-btn modal-btn-primary" onclick="submitXP()">Award XP</button></div>`;
+  document.getElementById('modal-overlay').style.display='flex';
+}
+function openAddMemberModal(team){
+  document.getElementById('modal-title').textContent='➕ Add Member';
+  document.getElementById('modal-body').innerHTML=`<div class="modal-field"><label class="modal-label">Name</label><input class="modal-input" id="nm-name" placeholder="Full name"></div><div class="modal-field"><label class="modal-label">Email</label><input class="modal-input" id="nm-email" placeholder="email@company.com"></div><div class="modal-field"><label class="modal-label">Team</label><select class="modal-select" id="nm-team">${allTeams().map(t=>`<option value="${t}" ${t===team?'selected':''}>${t}</option>`).join('')}</select></div><div class="modal-actions"><button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancel</button><button class="modal-btn modal-btn-primary" onclick="submitAddFromModal()">Add</button></div>`;
+  document.getElementById('modal-overlay').style.display='flex';
+}
+async function submitXP(){
+  const mid=document.getElementById('m-member').value;
+  const ti=parseInt(document.getElementById('m-type').value);
+  const xt=XP_TYPES[ti];
+  let xp=xt.xp||parseInt(document.getElementById('m-cxp')?.value)||50;
+  const note=document.getElementById('m-note').value.trim();
+  const m=members.find(m=>String(m.id)===String(mid));if(!m)return;
+  const prevTier=getTier(m.xp).name;
+  await sb.from('xp_log').insert({user_id:mid,activity_type:note||xt.label,icon:xt.icon,xp_amount:xp,note});
+  m.xp+=xp;m.streak+=1;
+  const newTier=getTier(m.xp).name;
+  xpLog.unshift({id:nextId++,name:dispName(m),team:m.team,type:note||xt.label,icon:xt.icon,xp,time:new Date().toISOString()});
+  closeModal();render();showXpBurst(xp);
+  if(newTier!==prevTier)showTierBanner(dispName(m),newTier);
+}
+async function submitAddFromModal(){
+  const name=(document.getElementById('nm-name').value||'').trim();
+  const email=(document.getElementById('nm-email').value||'').trim();
+  const teamName=document.getElementById('nm-team').value;
+  if(!name||!email)return;
+  const team=teams.find(t=>t.name===teamName);
+  const {data}=await sb.from('users').insert({name,email,password:'ChangeMe!',team_id:team?.id,xp:0,streak:0,avatar_color:AVATAR_COLORS[members.length%AVATAR_COLORS.length],role:'member'}).select().single();
+  if(data)members.push({...data,team:teamName,avatarColor:data.avatar_color,nickname:''});
+  closeModal();render();showToast(name+' added');
+}
+function closeModal(e){if(!e||e.target===document.getElementById('modal-overlay'))document.getElementById('modal-overlay').style.display='none';}
+function showXpBurst(xp){const el=document.createElement('div');el.className='xp-burst';el.textContent='+'+xp+' XP';el.style.left=(Math.random()*60+20)+'%';el.style.top='130px';document.body.appendChild(el);setTimeout(()=>el.remove(),1000);}
+function showTierBanner(name,tier){const el=document.createElement('div');el.className='tier-banner';el.innerHTML=`<div class="banner-title">Tier Up! ${name} reached ${tier}!</div><div class="banner-sub">New perks unlocked 🎉</div>`;document.body.appendChild(el);setTimeout(()=>el.remove(),3100);}
+function showToast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2100);}
+
+// ── BOOT ──────────────────────────────────────────────────────
+(async()=>{
+  await loadAll();
+  render();
+})();
+</script>
+</body>
+</html>
